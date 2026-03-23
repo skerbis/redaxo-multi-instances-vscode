@@ -1,5 +1,17 @@
 # Changelog
 
+## Version 1.11.4 (2026-03-23)
+
+### 🐛 Bug Fixes
+- **Login Info Anzeige**: REDAXO Backend-Zugangsdaten (Username/Passwort) wurden im Login Info Dashboard nicht angezeigt (veralteter Build)
+- **Build-Prozess**: Extension korrekt neu kompiliert und paketiert – `dist/extension.js` war veraltet
+
+### 🔧 Technical
+- Neu kompiliert mit webpack 5.105.0
+- VSIX-Package aktualisiert auf aktuellen Stand des Quellcodes
+
+---
+
 ## Version 1.11.3 (2026-02-09)
 
 ### ✨ New Features
