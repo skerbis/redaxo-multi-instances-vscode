@@ -25,6 +25,8 @@ Eine  TreeView (Seitenleiste)
 
 ### 🎯 Kern-Funktionen
 - **🏗️ Instanz-Management** - Erstellen, starten, stoppen und löschen von REDAXO-Instanzen
+- **🐘 PHP-Version wechseln (Custom)** - PHP-Version pro Custom-Instanz ändern (mit Rebuild)
+- **🗄️ MariaDB-Version wechseln** - MariaDB-Version pro Instanz umstellen (Container-Recreate)
 - **🤖 Copilot Chat Integration** - Verwalte Instanzen direkt via GitHub Copilot Chat mit @redaxo
 - **🎯 Custom Instance Support** - Vollständige Unterstützung für Custom REDAXO Instanzen mit individuellen Verzeichnisstrukturen
 - **⚡ Direkte Instance-Kommunikation** - Console Commands, Datenbank-Queries, Logs - alles aus VS Code
@@ -35,9 +37,14 @@ Eine  TreeView (Seitenleiste)
 - **🔑 Login-Informationen** - Automatische Anzeige von Zugangsdaten und URLs
 - **📱 TreeView** - Seitenleiste mit allen Instanzen und deren Status
 
+### ℹ️ Wichtiger Hinweis zur Instanzliste
+- **Stopped Instances** sind normale, vorhandene Instanzen, die aktuell nicht laufen.
+- Sie sind **nicht** verwaist und **keine Core-Sessions**.
+- Eine Instanz wie `core` ist einfach ein Instanzname aus deinem konfigurierten Instances-Ordner.
+
 ### 🔧 Technische Features
 - **PHP Support** - PHP 7.4, 8.1, 8.2, 8.3, 8.4, 8.5
-- **MariaDB Support** - Aktuell 11.3
+- **MariaDB Support** - 10.6, 10.11, 11.4, 11.8 (LTS) und 12.2 (Rolling)
 - **🗄️ Adminer Integration** - Globaler Adminer-Container für Datenbankverwaltung
 - **� Multi-Database Support** - Erstelle zusätzliche Datenbanken pro Instanz über die UI
 - **�🚀 Dynamic Path Resolution** - Intelligente Erkennung von Console-Pfaden und REDAXO-Strukturen

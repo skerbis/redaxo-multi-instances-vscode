@@ -637,6 +637,140 @@ export class DockerService {
         }
     }
 
+    async changeInstancePhpVersion(instanceName: string, phpVersion: string): Promise<void> {
+        try {
+            const supportedVersions = ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
+            if (!supportedVersions.includes(phpVersion)) {
+                throw new Error(`Unsupported PHP version: ${phpVersion}`);
+            }
+
+            const instancesDir = await this.getInstancesDirectory();
+            const instancePath = path.join(instancesDir, instanceName);
+            const composePath = path.join(instancePath, 'docker-compose.yml');
+            const envPath = path.join(instancePath, '.env');
+            const dockerfilePath = path.join(instancePath, 'Dockerfile');
+
+            const instance = await this.getInstance(instanceName);
+            if (!instance) {
+                throw new Error(`Instance ${instanceName} not found`);
+            }
+
+            const composeContent = await fs.readFile(composePath, 'utf8');
+            const hasBuildConfig = composeContent.includes('build:') && composeContent.includes('PHP_VERSION:');
+            const isCustom = instance.instanceType === 'custom' || hasBuildConfig;
+
+            if (!isCustom) {
+                throw new Error('PHP version switch is currently only supported for custom instances (with Dockerfile/build args).');
+            }
+
+            // Update .env (used by UI and login info)
+            try {
+                let envContent = await fs.readFile(envPath, 'utf8');
+                if (/^PHP_VERSION=.*$/m.test(envContent)) {
+                    envContent = envContent.replace(/^PHP_VERSION=.*$/m, `PHP_VERSION=${phpVersion}`);
+                } else {
+                    envContent += `\nPHP_VERSION=${phpVersion}\n`;
+                }
+                await fs.writeFile(envPath, envContent, 'utf8');
+            } catch {
+                this.log(`⚠️ Could not update .env for ${instanceName}`);
+            }
+
+            // Update docker-compose build arg if present
+            let updatedCompose = composeContent;
+            if (/PHP_VERSION:\s*[0-9.]+/m.test(updatedCompose)) {
+                updatedCompose = updatedCompose.replace(/PHP_VERSION:\s*[0-9.]+/m, `PHP_VERSION: ${phpVersion}`);
+                await fs.writeFile(composePath, updatedCompose, 'utf8');
+            }
+
+            // Validate Dockerfile exists for custom rebuild workflow
+            try {
+                await fs.access(dockerfilePath);
+            } catch {
+                throw new Error('No Dockerfile found. PHP version switch requires a custom Dockerfile-based instance.');
+            }
+
+            const wasRunning = (await this.getInstanceStatus(instanceName)) === 'running';
+
+            this.log(`🐘 Changing PHP version for ${instanceName} to ${phpVersion}`);
+            this.log(`🛑 Stopping instance before rebuild...`);
+            await this.runDockerCommand(['compose', 'down'], { cwd: instancePath });
+
+            this.log(`🔨 Rebuilding web image with PHP ${phpVersion}...`);
+            await this.runDockerCommand(['compose', 'build', '--no-cache', 'web'], { cwd: instancePath });
+
+            if (wasRunning) {
+                this.log(`🚀 Restarting instance after PHP switch...`);
+                await this.runDockerCommand(['compose', 'up', '-d'], { cwd: instancePath });
+            }
+
+            this.log(`✅ PHP version for ${instanceName} changed to ${phpVersion}`);
+        } catch (error: any) {
+            this.log(`❌ Failed to change PHP version: ${error.message}`);
+            throw error;
+        }
+    }
+
+    async changeInstanceMariaDbVersion(instanceName: string, mariaDbVersion: string): Promise<void> {
+        try {
+            const supportedVersions = ['10.6', '10.11', '11.4', '11.8', '12.2'];
+            if (!supportedVersions.includes(mariaDbVersion)) {
+                throw new Error(`Unsupported MariaDB version: ${mariaDbVersion}`);
+            }
+
+            const instancesDir = await this.getInstancesDirectory();
+            const instancePath = path.join(instancesDir, instanceName);
+            const composePath = path.join(instancePath, 'docker-compose.yml');
+            const envPath = path.join(instancePath, '.env');
+
+            const instance = await this.getInstance(instanceName);
+            if (!instance) {
+                throw new Error(`Instance ${instanceName} not found`);
+            }
+
+            const composeContent = await fs.readFile(composePath, 'utf8');
+
+            // Keep .env in sync for UI/login information
+            try {
+                let envContent = await fs.readFile(envPath, 'utf8');
+                if (/^MARIADB_VERSION=.*$/m.test(envContent)) {
+                    envContent = envContent.replace(/^MARIADB_VERSION=.*$/m, `MARIADB_VERSION=${mariaDbVersion}`);
+                } else {
+                    envContent += `\nMARIADB_VERSION=${mariaDbVersion}\n`;
+                }
+                await fs.writeFile(envPath, envContent, 'utf8');
+            } catch {
+                this.log(`⚠️ Could not update .env for ${instanceName}`);
+            }
+
+            // Update hardcoded MariaDB image tag in docker-compose if present
+            let updatedCompose = composeContent;
+            if (/image:\s*mariadb:[^\s]+/m.test(updatedCompose)) {
+                updatedCompose = updatedCompose.replace(/image:\s*mariadb:[^\s]+/m, `image: mariadb:${mariaDbVersion}`);
+            }
+            await fs.writeFile(composePath, updatedCompose, 'utf8');
+
+            const wasRunning = (await this.getInstanceStatus(instanceName)) === 'running';
+
+            this.log(`🗄️ Changing MariaDB version for ${instanceName} to ${mariaDbVersion}`);
+            this.log(`🛑 Stopping instance before database image switch...`);
+            await this.runDockerCommand(['compose', 'down'], { cwd: instancePath });
+
+            this.log(`📦 Pulling MariaDB ${mariaDbVersion} image...`);
+            await this.runDockerCommand(['compose', 'pull', 'mysql'], { cwd: instancePath });
+
+            if (wasRunning) {
+                this.log(`🚀 Restarting instance after MariaDB switch...`);
+                await this.runDockerCommand(['compose', 'up', '-d'], { cwd: instancePath });
+            }
+
+            this.log(`✅ MariaDB version for ${instanceName} changed to ${mariaDbVersion}`);
+        } catch (error: any) {
+            this.log(`❌ Failed to change MariaDB version: ${error.message}`);
+            throw error;
+        }
+    }
+
     /**
      * Generate setup script for a REDAXO instance
      */

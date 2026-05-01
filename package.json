@@ -2,7 +2,7 @@
   "name": "redaxo-multi-instances-manager",
   "displayName": "REDAXO Multi-Instances Manager",
   "description": "Complete REDAXO multi-instance management with Docker containers, SSL support, and automatic port management integrated into VS Code",
-  "version": "1.11.4",
+  "version": "1.21.0",
   "publisher": "skerbis",
   "icon": "resources/icon.png",
   "repository": {
@@ -15,7 +15,7 @@
   },
   "license": "MIT",
   "engines": {
-    "vscode": "^1.109.0"
+    "vscode": "^1.118.0"
   },
   "categories": [
     "Other"
@@ -210,6 +210,16 @@
         "icon": "$(tools)"
       },
       {
+        "command": "redaxo-instances.changePhpVersion",
+        "title": "Change PHP Version",
+        "icon": "$(symbol-key)"
+      },
+      {
+        "command": "redaxo-instances.changeMariaDbVersion",
+        "title": "Change MariaDB Version",
+        "icon": "$(database)"
+      },
+      {
         "command": "redaxo-instances.updateHosts",
         "title": "Add to Hosts File",
         "icon": "$(globe)"
@@ -241,6 +251,21 @@
       {
         "command": "redaxo-instances.openReadme",
         "title": "Open README"
+      },
+      {
+        "command": "redaxo-instances.exportInstance",
+        "title": "Export Instance",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "redaxo-instances.importInstance",
+        "title": "Import Instance from Archive",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "redaxo-instances.maintenanceMenu",
+        "title": "Maintenance & Housekeeping",
+        "icon": "$(tools)"
       }
     ],
     "views": {
@@ -288,6 +313,16 @@
         },
         {
           "command": "redaxo-instances.showHelp",
+          "when": "view == redaxo-instances.instancesView",
+          "group": "navigation"
+        },
+        {
+          "command": "redaxo-instances.maintenanceMenu",
+          "when": "view == redaxo-instances.instancesView",
+          "group": "navigation"
+        },
+        {
+          "command": "redaxo-instances.importInstance",
           "when": "view == redaxo-instances.instancesView",
           "group": "navigation"
         }
@@ -364,9 +399,19 @@
           "group": "4_info@4"
         },
         {
-          "command": "redaxo-instances.updateHosts",
+          "command": "redaxo-instances.changePhpVersion",
           "when": "view == redaxo-instances.instancesView && viewItem =~ /instance/",
           "group": "4_info@5"
+        },
+        {
+          "command": "redaxo-instances.changeMariaDbVersion",
+          "when": "view == redaxo-instances.instancesView && viewItem =~ /instance/",
+          "group": "4_info@6"
+        },
+        {
+          "command": "redaxo-instances.updateHosts",
+          "when": "view == redaxo-instances.instancesView && viewItem =~ /instance/",
+          "group": "4_info@7"
         },
         {
           "command": "redaxo-instances.openWorkspace",
@@ -382,6 +427,11 @@
           "command": "redaxo-instances.deleteInstance",
           "when": "view == redaxo-instances.instancesView && viewItem =~ /instance/",
           "group": "5_danger@1"
+        },
+        {
+          "command": "redaxo-instances.exportInstance",
+          "when": "view == redaxo-instances.instancesView && viewItem =~ /instance/",
+          "group": "5_danger@2"
         }
       ]
     },
@@ -404,27 +454,27 @@
         },
         "redaxo-instances.defaultPhpVersion": {
           "type": "string",
-          "default": "8.3",
+          "default": "8.5",
           "enum": [
             "7.4",
             "8.0",
             "8.1",
             "8.2",
             "8.3",
-            "8.4"
+            "8.4",
+            "8.5"
           ],
           "description": "Default PHP version for new instances"
         },
         "redaxo-instances.defaultMariaDbVersion": {
           "type": "string",
-          "default": "10.11",
+          "default": "11.8",
           "enum": [
-            "10.4",
-            "10.5",
             "10.6",
             "10.11",
-            "11.0",
-            "latest"
+            "11.4",
+            "11.8",
+            "12.2"
           ],
           "description": "Default MariaDB version for new instances"
         },
@@ -449,17 +499,17 @@
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
-    "@types/node": "^25.2.2",
-    "@types/vscode": "^1.109.0",
-    "@typescript-eslint/eslint-plugin": "^8.54.0",
-    "@typescript-eslint/parser": "^8.54.0",
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.118.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
-    "eslint": "^9.39.2",
+    "eslint": "^9.39.4",
     "mocha": "^11.7.5",
-    "ts-loader": "^9.5.4",
+    "ts-loader": "^9.5.7",
     "typescript": "^5.9.3",
-    "webpack": "^5.105.0",
+    "webpack": "^5.106.2",
     "webpack-cli": "^6.0.1"
   }
 }

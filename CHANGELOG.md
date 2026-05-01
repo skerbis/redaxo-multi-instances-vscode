@@ -1,5 +1,20 @@
 # Changelog
 
+## Version 1.21.0 (2026-04-30)
+
+### ✨ New Features
+- **Instance Transfer**: Export/Import kompletter Instanzen als `.tar.gz`-Bundle mit Manifest, Konfiguration und optionalem DB-Dump.
+- **Maintenance Menü**: Port-Reorganisation, Restart laufender Instanzen und Prune verwaister Docker-Ressourcen.
+- **MariaDB Version Switch**: Versionswechsel pro Instanz inklusive Anpassung von `.env` und `docker-compose.yml`.
+
+### 🔧 Improvements
+- **TreeView Hierarchie**: Running/Stopped als echte, aufklappbare Kategorien statt flacher Liste.
+- **PHP Defaults**: `8.5` als Default-Version in den Settings ergänzt.
+- **Dependency Refresh**: Non-breaking Updates der Dev-Dependencies für aktuellen Build-Stand.
+
+### 📝 Notes
+- Verbleibende `npm audit`-Findings liegen primär in der Test-Toolchain und werden separat über Major-Upgrades adressiert.
+
 ## Version 1.11.4 (2026-03-23)
 
 ### 🐛 Bug Fixes

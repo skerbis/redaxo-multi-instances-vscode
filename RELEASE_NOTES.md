@@ -2,6 +2,74 @@
 
 # Release Notes
 
+## Version 1.21.0 (2026-04-30)
+
+### ✨ Neue Features
+- **Instance Transfer (Export/Import)**
+   - Neuer Export als `.tar.gz`-Bundle pro Instanz.
+   - Enthaltene Bestandteile: `manifest.json`, `docker-compose.yml`, `.env`, optionale Setup-Dateien, optionales DB-Dump und REDAXO-Dateien.
+   - Neue Import-Funktion aus Export-Bundle in eine neue Instanz.
+   - Automatische Port-Neuvergabe beim Import (HTTP/HTTPS/MySQL), um Konflikte auf dem Zielsystem zu vermeiden.
+   - Automatische Anpassung von `.env` und `docker-compose.yml` im Importprozess.
+
+- **Maintenance Menü**
+   - Neue Wartungsfunktionen über ein zentrales Menü:
+      - Port-Konflikte erkennen und sauber neu zuweisen.
+      - Alle laufenden Instanzen sequentiell neu starten.
+      - Verwaiste Docker-Ressourcen (Container/Volumes/Netzwerke) erkennen und auf Bestätigung entfernen.
+
+- **MariaDB Versionswechsel pro Instanz**
+   - Neue Aktion pro Instanz zum Wechseln der MariaDB-Version.
+   - Unterstützte Ziele: `12.2`, `11.8`, `11.4`, `10.11`, `10.6`.
+   - Aktualisiert sowohl `.env` als auch das Compose-Image und führt den notwendigen Recreate-Flow aus.
+
+### 🧭 UX und Bedienung
+- **Baumansicht als echte Hierarchie**
+   - Instanzen werden in aufklappbaren Kategorien angezeigt:
+      - Running Instances
+      - Stopped Instances
+   - Verbesserte Navigation in größeren Umgebungen.
+
+### 🔧 Verbesserungen
+- **PHP Versionspflege**
+   - `PHP 8.5` als Standard in den Einstellungen ergänzt und als Default gesetzt.
+   - Auswahloptionen für PHP-Versionen in den relevanten Dialogen konsistent gehalten.
+
+- **Abhängigkeits-Updates (non-breaking)**
+   - Entwicklungsabhängigkeiten auf aktuelle, kompatible Minor/Patch-Stände aktualisiert.
+   - Build weiterhin erfolgreich mit webpack produziert.
+
+### 🛡️ Betrieb und Sicherheit
+- Export/Import-Flow enthält Schutzmechanismen für konsistente Datenübernahme:
+   - DB-Dump wird bevorzugt erzeugt, wenn Instanz läuft.
+   - Dateisnapshot erfolgt in konsistentem Ablauf.
+   - Instanz wird nach Export bei Bedarf wieder gestartet.
+
+### ⚠️ Bekannte Hinweise
+- `npm audit` meldet weiterhin Findings in Teilen der Test-Toolchain.
+- Für vollständige Bereinigung sind dedizierte Major-Upgrades in einem separaten Wartungsrelease geplant.
+
+### ✅ Empfohlenes Upgrade-Vorgehen
+1. VSIX der Version `1.21.0` installieren.
+2. VS Code neu laden.
+3. Instanzliste aktualisieren.
+4. Optional: einmalig Maintenance-Menü für Port- und Orphan-Check ausführen.
+
+## Version 1.20.0 (2026-04-30)
+
+### ✨ New Features
+- **Change PHP Version (Custom Instances)**: Neue Aktion pro Instanz zum Wechseln der PHP-Version.
+   - Aktualisiert `PHP_VERSION` in `.env`
+   - Aktualisiert `PHP_VERSION` Build-Arg in `docker-compose.yml`
+   - Führt Rebuild des Web-Containers durch
+   - Startet die Instanz nach dem Rebuild wieder, wenn sie vorher lief
+
+### 🔧 Improvements
+- **Export Konsistenz**: Export stoppt die Instanz für konsistenten Dateisnapshot und startet sie danach wieder.
+
+### 📝 Clarification
+- **Stopped Instances** in der TreeView sind normale, vorhandene aber gestoppte Instanzen (keine Core-Sessions).
+
 ## Version 1.11.3 (2026-02-09)
 
 ### ✨ Improvements

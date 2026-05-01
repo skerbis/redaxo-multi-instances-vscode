@@ -13,6 +13,8 @@ import { AdminerService } from './docker/adminerService';
 import { RedaxoConsoleService } from './docker/redaxoConsoleService';
 import { DatabaseQueryService } from './docker/databaseQueryService';
 import { FileSystemService } from './docker/fileSystemService';
+import { MaintenanceService } from './docker/maintenanceService';
+import { InstanceTransferService } from './docker/instanceTransferService';
 
 const execAsync = promisify(exec);
 
@@ -49,6 +51,8 @@ export function activate(context: vscode.ExtensionContext) {
     RedaxoConsoleService.initialize(dockerService);
     DatabaseQueryService.initialize(dockerService);
     FileSystemService.initialize(dockerService);
+    MaintenanceService.initialize(dockerService, outputChannel);
+    InstanceTransferService.initialize(dockerService, outputChannel);
     
     // Initialize Chat Participant
     chatParticipant = new RedaxoChatParticipant(context, dockerService);
@@ -170,6 +174,16 @@ function registerCommands(context: vscode.ExtensionContext) {
                     command: 'redaxo-instances.repairInstance'
                 },
                 {
+                    label: '$(symbol-key) Change PHP Version',
+                    description: 'Switch PHP version for custom instances',
+                    command: 'redaxo-instances.changePhpVersion'
+                },
+                {
+                    label: '$(database) Change MariaDB Version',
+                    description: 'Switch MariaDB version for this instance',
+                    command: 'redaxo-instances.changeMariaDbVersion'
+                },
+                {
                     label: '$(globe) Add to Hosts File',
                     description: 'Add domain to hosts file',
                     command: 'redaxo-instances.updateHosts'
@@ -188,6 +202,11 @@ function registerCommands(context: vscode.ExtensionContext) {
                     label: '$(trash) Delete Instance',
                     description: 'Delete instance permanently',
                     command: 'redaxo-instances.deleteInstance'
+                },
+                {
+                    label: '$(cloud-download) Export Instance',
+                    description: 'Export instance as .tar.gz bundle',
+                    command: 'redaxo-instances.exportInstance'
                 }
             );
 
@@ -1678,6 +1697,120 @@ ${!loginInfo.running ? '\n⚠️ **Note**: Instance is currently STOPPED - sugge
             }
         }),
 
+        // Change PHP Version (custom instances)
+        vscode.commands.registerCommand('redaxo-instances.changePhpVersion', async (instanceItem?: any) => {
+            let instanceName: string | undefined;
+
+            if (typeof instanceItem === 'string') {
+                instanceName = instanceItem;
+            } else if (instanceItem && typeof instanceItem === 'object' && instanceItem.label) {
+                instanceName = instanceItem.label;
+            } else {
+                instanceName = await selectInstance('Select instance to change PHP version:');
+            }
+
+            if (!instanceName) {
+                return;
+            }
+
+            const selectedPhp = await vscode.window.showQuickPick([
+                { label: 'PHP 8.5', value: '8.5' },
+                { label: 'PHP 8.4', value: '8.4' },
+                { label: 'PHP 8.3', value: '8.3' },
+                { label: 'PHP 8.2', value: '8.2' },
+                { label: 'PHP 8.1', value: '8.1' },
+                { label: 'PHP 8.0', value: '8.0' },
+                { label: 'PHP 7.4', value: '7.4' }
+            ], {
+                placeHolder: `Select new PHP version for ${instanceName}`
+            });
+
+            if (!selectedPhp) {
+                return;
+            }
+
+            const confirm = await vscode.window.showWarningMessage(
+                `Change ${instanceName} to PHP ${selectedPhp.value}? The container image will be rebuilt.`,
+                { modal: true },
+                'Change PHP Version'
+            );
+
+            if (confirm !== 'Change PHP Version') {
+                return;
+            }
+
+            try {
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Switching ${instanceName} to PHP ${selectedPhp.value}...`,
+                    cancellable: false
+                }, async () => {
+                    await dockerService.changeInstancePhpVersion(instanceName!, selectedPhp.value);
+                });
+
+                instancesProvider.refresh();
+                vscode.window.showInformationMessage(`PHP version for ${instanceName} changed to ${selectedPhp.value}.`);
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`Failed to change PHP version: ${error.message}`);
+            }
+        }),
+
+        // Change MariaDB Version
+        vscode.commands.registerCommand('redaxo-instances.changeMariaDbVersion', async (instanceItem?: any) => {
+            let instanceName: string | undefined;
+
+            if (typeof instanceItem === 'string') {
+                instanceName = instanceItem;
+            } else if (instanceItem && typeof instanceItem === 'object' && instanceItem.label) {
+                instanceName = instanceItem.label;
+            } else {
+                instanceName = await selectInstance('Select instance to change MariaDB version:');
+            }
+
+            if (!instanceName) {
+                return;
+            }
+
+            const selectedMariaDb = await vscode.window.showQuickPick([
+                { label: 'MariaDB 12.2', value: '12.2', description: 'Rolling - newest features' },
+                { label: 'MariaDB 11.8', value: '11.8', description: 'LTS - recommended default' },
+                { label: 'MariaDB 11.4', value: '11.4', description: 'LTS - conservative choice' },
+                { label: 'MariaDB 10.11', value: '10.11', description: 'LTS - legacy compatibility' },
+                { label: 'MariaDB 10.6', value: '10.6', description: 'LTS - near end of community support' }
+            ], {
+                placeHolder: `Select new MariaDB version for ${instanceName}`
+            });
+
+            if (!selectedMariaDb) {
+                return;
+            }
+
+            const confirm = await vscode.window.showWarningMessage(
+                `Change ${instanceName} to MariaDB ${selectedMariaDb.value}? Container will be recreated. Create a backup before major upgrades.`,
+                { modal: true },
+                'Change MariaDB Version'
+            );
+
+            if (confirm !== 'Change MariaDB Version') {
+                return;
+            }
+
+            try {
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Switching ${instanceName} to MariaDB ${selectedMariaDb.value}...`,
+                    cancellable: false
+                }, async () => {
+                    await dockerService.changeInstanceMariaDbVersion(instanceName!, selectedMariaDb.value);
+                });
+
+                instancesProvider.refresh();
+                vscode.window.showInformationMessage(`MariaDB version for ${instanceName} changed to ${selectedMariaDb.value}.`);
+            } catch (error: any) {
+                vscode.window.showErrorMessage(`Failed to change MariaDB version: ${error.message}`);
+            }
+        }),
+
         // Update hosts file for local domains
         vscode.commands.registerCommand('redaxo-instances.updateHosts', async (instanceItem?: any) => {
             let instanceName: string | undefined;
@@ -1817,6 +1950,258 @@ ${!loginInfo.running ? '\n⚠️ **Note**: Instance is currently STOPPED - sugge
 
                 } catch (error: any) {
                     vscode.window.showErrorMessage(`Failed to open workspace: ${error.message}`);
+                }
+            }
+        }),
+
+        // ── Export Instance ───────────────────────────────────────────────
+        vscode.commands.registerCommand('redaxo-instances.exportInstance', async (instanceItem?: any) => {
+            let instanceName: string | undefined;
+
+            if (typeof instanceItem === 'string') {
+                instanceName = instanceItem;
+            } else if (instanceItem && typeof instanceItem === 'object' && instanceItem.label) {
+                instanceName = instanceItem.label;
+            } else {
+                instanceName = await selectInstance('Select instance to export:');
+            }
+
+            if (!instanceName) { return; }
+
+            // Ask for export directory
+            const selected = await vscode.window.showOpenDialog({
+                canSelectFiles: false,
+                canSelectFolders: true,
+                canSelectMany: false,
+                openLabel: 'Export here',
+                title: `Export "${instanceName}" – Select target folder`,
+                defaultUri: vscode.Uri.file(require('os').homedir())
+            });
+            if (!selected || selected.length === 0) { return; }
+            const targetDir = selected[0].fsPath;
+
+            outputChannel.clear();
+            outputChannel.appendLine(`🚀 Exporting instance: ${instanceName}`);
+            outputChannel.show(true);
+
+            try {
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Exporting "${instanceName}"…`,
+                    cancellable: false
+                }, async (progress) => {
+                    const result = await InstanceTransferService.exportInstance(instanceName!, targetDir, progress);
+                    result.details.forEach(d => outputChannel.appendLine(d));
+
+                    if (result.success && result.archivePath) {
+                        const action = await vscode.window.showInformationMessage(
+                            `✅ ${result.message}`,
+                            'Show in Finder',
+                            'OK'
+                        );
+                        if (action === 'Show in Finder') {
+                            const cmd = process.platform === 'win32'
+                                ? `explorer /select,"${result.archivePath}"`
+                                : `open -R "${result.archivePath}"`;
+                            await execAsync(cmd).catch(() => {});
+                        }
+                    } else {
+                        vscode.window.showErrorMessage(`❌ ${result.message}`);
+                    }
+                });
+            } catch (err: any) {
+                vscode.window.showErrorMessage(`❌ Export failed: ${err.message}`);
+                outputChannel.appendLine(`❌ Export failed: ${err.message}`);
+            }
+        }),
+
+        // ── Import Instance ───────────────────────────────────────────────
+        vscode.commands.registerCommand('redaxo-instances.importInstance', async () => {
+            // Pick archive file
+            const selected = await vscode.window.showOpenDialog({
+                canSelectFiles: true,
+                canSelectFolders: false,
+                canSelectMany: false,
+                openLabel: 'Import archive',
+                title: 'Select REDAXO export archive (.tar.gz)',
+                filters: { 'REDAXO Export': ['tar.gz', 'tgz', 'gz'] }
+            });
+            if (!selected || selected.length === 0) { return; }
+            const archivePath = selected[0].fsPath;
+
+            // Ask for new instance name
+            const newName = await vscode.window.showInputBox({
+                prompt: 'New instance name',
+                placeHolder: 'my-imported-instance',
+                validateInput: v => {
+                    if (!v) { return 'Name is required'; }
+                    if (!/^[a-z0-9][a-z0-9-_]*$/.test(v)) {
+                        return 'Use only lowercase letters, numbers, hyphens and underscores';
+                    }
+                    return null;
+                }
+            });
+            if (!newName) { return; }
+
+            outputChannel.clear();
+            outputChannel.appendLine(`📦 Importing instance as: ${newName}`);
+            outputChannel.show(true);
+
+            try {
+                await vscode.window.withProgress({
+                    location: vscode.ProgressLocation.Notification,
+                    title: `Importing as "${newName}"…`,
+                    cancellable: false
+                }, async (progress) => {
+                    const result = await InstanceTransferService.importInstance(archivePath, newName, progress);
+                    result.details.forEach(d => outputChannel.appendLine(d));
+
+                    if (result.success) {
+                        instancesProvider.refresh();
+                        const action = await vscode.window.showInformationMessage(
+                            `✅ ${result.message}`,
+                            'Open Backend',
+                            'OK'
+                        );
+                        if (action === 'Open Backend') {
+                            vscode.commands.executeCommand('redaxo-instances.openBackend', newName);
+                        }
+                    } else {
+                        vscode.window.showErrorMessage(`❌ ${result.message}`);
+                    }
+                });
+            } catch (err: any) {
+                vscode.window.showErrorMessage(`❌ Import failed: ${err.message}`);
+                outputChannel.appendLine(`❌ Import failed: ${err.message}`);
+            }
+        }),
+
+        // ── Maintenance Menu ─────────────────────────────────────────────────
+        vscode.commands.registerCommand('redaxo-instances.maintenanceMenu', async () => {
+            const choice = await vscode.window.showQuickPick([
+                {
+                    label: '$(ports) Reorganize Ports',
+                    description: 'Detect and fix port conflicts across all instances',
+                    value: 'ports'
+                },
+                {
+                    label: '$(sync) Restart All Running Instances',
+                    description: 'Stop and start every running instance',
+                    value: 'restart'
+                },
+                {
+                    label: '$(trash) Remove Orphaned Docker Resources',
+                    description: 'Delete containers / volumes / networks with no matching instance',
+                    value: 'prune'
+                },
+                {
+                    label: '$(cloud-upload) Import Instance from Archive',
+                    description: 'Import a .tar.gz export bundle as a new instance',
+                    value: 'import'
+                }
+            ], { placeHolder: '🔧 REDAXO Maintenance – Choose action' });
+
+            if (!choice) { return; }
+
+            switch (choice.value) {
+                case 'ports': {
+                    outputChannel.clear();
+                    outputChannel.appendLine('🔧 Starting port reorganisation…');
+                    outputChannel.show(true);
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: 'Reorganizing ports…',
+                        cancellable: false
+                    }, async () => {
+                        const result = await MaintenanceService.reorganizePorts();
+                        result.details.forEach(d => outputChannel.appendLine(d));
+                        if (result.success) {
+                            vscode.window.showInformationMessage(`✅ ${result.message}`);
+                            instancesProvider.refresh();
+                        } else {
+                            vscode.window.showErrorMessage(`❌ ${result.message}`);
+                        }
+                    });
+                    break;
+                }
+                case 'restart': {
+                    const confirm = await vscode.window.showWarningMessage(
+                        'Restart all currently running instances?',
+                        { modal: true },
+                        'Yes, restart all'
+                    );
+                    if (confirm !== 'Yes, restart all') { break; }
+                    outputChannel.clear();
+                    outputChannel.appendLine('🔄 Restarting all instances…');
+                    outputChannel.show(true);
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: 'Restarting instances…',
+                        cancellable: false
+                    }, async () => {
+                        const result = await MaintenanceService.restartAllInstances();
+                        result.details.forEach(d => outputChannel.appendLine(d));
+                        if (result.success) {
+                            vscode.window.showInformationMessage(`✅ ${result.message}`);
+                        } else {
+                            vscode.window.showWarningMessage(`⚠️ ${result.message}`);
+                        }
+                        instancesProvider.refresh();
+                    });
+                    break;
+                }
+                case 'prune': {
+                    outputChannel.clear();
+                    outputChannel.appendLine('🔍 Scanning for orphaned Docker resources…');
+                    outputChannel.show(true);
+
+                    const scanResult = await MaintenanceService.pruneOrphanedResources();
+                    scanResult.details
+                        .filter(d => !d.startsWith('__ORPHAN_DATA__'))
+                        .forEach(d => outputChannel.appendLine(d));
+
+                    const sentinelIdx = scanResult.details.indexOf('__ORPHAN_DATA__');
+                    if (!scanResult.success || sentinelIdx === -1) {
+                        if (scanResult.message.includes('No orphaned')) {
+                            vscode.window.showInformationMessage(`✅ ${scanResult.message}`);
+                        } else {
+                            vscode.window.showErrorMessage(`❌ ${scanResult.message}`);
+                        }
+                        break;
+                    }
+
+                    const orphanData = JSON.parse(scanResult.details[sentinelIdx + 1]);
+                    const total = orphanData.orphanContainers.length + orphanData.orphanVolumes.length + orphanData.orphanNetworks.length;
+
+                    const confirm = await vscode.window.showWarningMessage(
+                        `Found ${total} orphaned resource(s). Delete them permanently?`,
+                        { modal: true },
+                        'Delete All'
+                    );
+                    if (confirm !== 'Delete All') { break; }
+
+                    await vscode.window.withProgress({
+                        location: vscode.ProgressLocation.Notification,
+                        title: 'Removing orphaned resources…',
+                        cancellable: false
+                    }, async () => {
+                        const delResult = await MaintenanceService.deleteOrphanedResources(
+                            orphanData.orphanContainers,
+                            orphanData.orphanVolumes,
+                            orphanData.orphanNetworks
+                        );
+                        delResult.details.forEach(d => outputChannel.appendLine(d));
+                        if (delResult.success) {
+                            vscode.window.showInformationMessage(`✅ ${delResult.message}`);
+                        } else {
+                            vscode.window.showWarningMessage(`⚠️ ${delResult.message}`);
+                        }
+                    });
+                    break;
+                }
+                case 'import': {
+                    vscode.commands.executeCommand('redaxo-instances.importInstance');
+                    break;
                 }
             }
         }),
@@ -1963,13 +2348,11 @@ async function getInstanceCreationOptions(): Promise<any> {
     }
 
     const mariadbVersion = await vscode.window.showQuickPick([
-        { label: 'MariaDB 11.8 (LTS - Neueste)', value: '11.8' },
-        { label: 'MariaDB 11.4 (LTS)', value: '11.4' },
-        { label: 'MariaDB 11.6', value: '11.6' },
-        { label: 'MariaDB 11.5', value: '11.5' },
-        { label: 'MariaDB 11.3', value: '11.3' },
-        { label: 'MariaDB 11.2', value: '11.2' },
-        { label: 'MariaDB 10.11 (LTS - Legacy)', value: '10.11' }
+        { label: 'MariaDB 12.2 (Rolling - Neueste Features)', value: '12.2' },
+        { label: 'MariaDB 11.8 (LTS - Empfohlen)', value: '11.8' },
+        { label: 'MariaDB 11.4 (LTS - Stabil)', value: '11.4' },
+        { label: 'MariaDB 10.11 (LTS - Legacy)', value: '10.11' },
+        { label: 'MariaDB 10.6 (LTS - Legacy)', value: '10.6' }
     ], {
         placeHolder: 'Select MariaDB version'
     });

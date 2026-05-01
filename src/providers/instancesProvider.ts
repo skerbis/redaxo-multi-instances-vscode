@@ -67,35 +67,45 @@ export class InstancesProvider implements vscode.TreeDataProvider<TreeViewItem> 
 
     getChildren(element?: TreeViewItem): Thenable<TreeViewItem[]> {
         if (!element) {
-            // Return root instances with categories
+            // Return root: only category items (or info if empty)
             if (this.instances.length === 0) {
                 return Promise.resolve([new InfoItem('No instances found', 'Click "Create Instance" to get started', 'info')]);
             }
 
             const runningInstances = this.instances.filter(i => i.running);
             const stoppedInstances = this.instances.filter(i => !i.running);
-            
+
             const items: TreeViewItem[] = [];
-            
+
             if (runningInstances.length > 0) {
-                items.push(new CategoryItem('🟢 Running Instances', runningInstances.length));
-                runningInstances.forEach(instance => {
-                    items.push(new RedaxoInstanceItem(instance, this, 'running-instance'));
-                });
+                items.push(new CategoryItem('🟢 Running Instances', runningInstances.length, 'running'));
+            }
+            if (stoppedInstances.length > 0) {
+                items.push(new CategoryItem('⚫ Stopped Instances', stoppedInstances.length, 'stopped'));
             }
 
-            if (stoppedInstances.length > 0) {
-                items.push(new CategoryItem('⚫ Stopped Instances', stoppedInstances.length));
-                stoppedInstances.forEach(instance => {
-                    items.push(new RedaxoInstanceItem(instance, this, 'stopped-instance'));
-                });
-            }            return Promise.resolve(items);
+            return Promise.resolve(items);
+        }
+
+        if (element instanceof CategoryItem) {
+            const isRunning = element.categoryType === 'running';
+            const filtered = this.instances.filter(i => i.running === isRunning);
+            const contextPrefix = isRunning ? 'running-instance' : 'stopped-instance';
+            return Promise.resolve(
+                filtered.map(instance => new RedaxoInstanceItem(instance, this, contextPrefix))
+            );
         }
 
         return Promise.resolve([]);
     }
 
     getParent?(element: TreeViewItem): vscode.ProviderResult<TreeViewItem> {
+        if (element instanceof RedaxoInstanceItem) {
+            const isRunning = element.instance.running;
+            const label = isRunning ? '🟢 Running Instances' : '⚫ Stopped Instances';
+            const count = this.instances.filter(i => i.running === isRunning).length;
+            return new CategoryItem(label, count, isRunning ? 'running' : 'stopped');
+        }
         return null;
     }
 
@@ -244,14 +254,15 @@ export class RedaxoInstanceItem extends vscode.TreeItem {
 }
 
 export class CategoryItem extends vscode.TreeItem {
-    constructor(label: string, count: number) {
-        super(`${label} (${count})`, vscode.TreeItemCollapsibleState.None);
-        
+    public readonly categoryType: 'running' | 'stopped';
+
+    constructor(label: string, count: number, categoryType: 'running' | 'stopped') {
+        super(`${label} (${count})`, vscode.TreeItemCollapsibleState.Expanded);
+
+        this.categoryType = categoryType;
         this.contextValue = 'category';
         this.iconPath = new vscode.ThemeIcon('folder');
         this.tooltip = `${count} instances in this category`;
-        
-        // Make category items non-selectable
         this.command = undefined;
     }
 }

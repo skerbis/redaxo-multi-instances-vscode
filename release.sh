@@ -5,6 +5,7 @@
 # Get version from package.json
 VERSION=$(node -p "require('./package.json').version")
 PACKAGE_NAME=$(node -p "require('./package.json').name")
+DISPLAY_NAME=$(node -p "require('./package.json').displayName")
 VSIX_FILE="${PACKAGE_NAME}-${VERSION}.vsix"
 
 echo "🚀 Creating Release v${VERSION}"
@@ -24,7 +25,6 @@ if [ -f "RELEASE_NOTES.md" ]; then
     echo "📋 Using existing RELEASE_NOTES.md"
 else
     echo "📝 Creating release notes from package.json..."
-    DISPLAY_NAME=$(node -p "require('./package.json').displayName")
     DESCRIPTION=$(node -p "require('./package.json').description")
     
     cat > RELEASE_NOTES.md << EOF
